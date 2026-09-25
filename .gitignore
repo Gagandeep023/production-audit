@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+*.log
+.DS_Store
+
+# The integration fixture ships a stand-in for `pg` so the module hook can be
+# tested without depending on the real driver. It must survive a fresh clone,
+# so it is deliberately not covered by the rule above.
+!test/fixtures/node_modules/
+!test/fixtures/node_modules/**

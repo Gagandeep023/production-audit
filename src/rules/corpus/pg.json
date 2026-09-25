@@ -1,0 +1,90 @@
+[
+  {
+    "id": "pg/pool-connection-timeout-unbounded",
+    "library": "pg",
+    "target": "pg.Pool",
+    "versionRange": ">=8",
+    "settings": [
+      "connectionTimeoutMillis"
+    ],
+    "dangerousWhen": {
+      "kind": "unsetOr",
+      "value": 0
+    },
+    "severity": "critical",
+    "why": "connectionTimeoutMillis defaults to 0, which means a caller waiting for a free pooled connection waits forever. Under load every request queues silently and the symptom reads as a slow database, while the database itself is idle and healthy.",
+    "fix": "Set connectionTimeoutMillis so that exhaustion fails fast and surfaces as an error you can see.",
+    "fixSnippet": {
+      "context": [
+        "new Pool({",
+        "  connectionString,"
+      ],
+      "added": [
+        "  connectionTimeoutMillis: 5_000,"
+      ]
+    },
+    "safeDefaults": {
+      "connectionTimeoutMillis": 5000
+    },
+    "profileOverrides": {
+      "worker": {
+        "connectionTimeoutMillis": 30000
+      }
+    }
+  },
+  {
+    "id": "pg/pool-idle-timeout-disabled",
+    "library": "pg",
+    "target": "pg.Pool",
+    "versionRange": ">=8",
+    "settings": [
+      "idleTimeoutMillis"
+    ],
+    "dangerousWhen": {
+      "kind": "equals",
+      "value": 0
+    },
+    "severity": "medium",
+    "why": "An idleTimeoutMillis of 0 keeps idle clients open indefinitely. After a database failover, a restart, or a stateful firewall dropping the flow, the pool hands out sockets that are already dead and the first query on each one fails.",
+    "fix": "Leave idleTimeoutMillis at the pg default of 10000, or set a deliberate non-zero value.",
+    "fixSnippet": {
+      "context": [
+        "new Pool({"
+      ],
+      "added": [
+        "  idleTimeoutMillis: 30_000,"
+      ]
+    }
+  },
+  {
+    "id": "pg/no-statement-timeout",
+    "library": "pg",
+    "target": "pg.Pool",
+    "versionRange": ">=8",
+    "settings": [
+      "statement_timeout"
+    ],
+    "dangerousWhen": "unset",
+    "severity": "high",
+    "why": "With no server-side statement timeout, one slow query holds its pooled connection until it finishes on its own. The pool defaults to 10 connections, so ten such queries take the service down while the database reports no errors.",
+    "fix": "Set statement_timeout on the pool so Postgres cancels a query that overruns.",
+    "fixSnippet": {
+      "context": [
+        "new Pool({",
+        "  connectionString,"
+      ],
+      "added": [
+        "  statement_timeout: 30_000,"
+      ]
+    },
+    "safeDefaults": {
+      "statement_timeout": 30000
+    },
+    "profileOverrides": {
+      "worker": {
+        "statement_timeout": 300000
+      },
+      "cli": null
+    }
+  }
+]

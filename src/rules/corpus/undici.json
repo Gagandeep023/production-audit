@@ -1,0 +1,20 @@
+[
+  {
+    "id": "undici/fetch-no-timeout",
+    "library": "undici",
+    "target": "globalThis.fetch",
+    "settings": ["signal"],
+    "dangerousWhen": "unset",
+    "severity": "critical",
+    "why": "fetch() has no timeout of any kind. A slow or hung upstream holds the request open until the connection dies on its own, which may be never. Every caller waiting on it is held too, and that is the most common cascading-failure shape in Node services.",
+    "fix": "Pass AbortSignal.timeout(ms) as init.signal, or use a dispatcher with explicit headersTimeout and bodyTimeout.",
+    "fixSnippet": {
+      "context": ["await fetch(url, {"],
+      "added": ["  signal: AbortSignal.timeout(10_000),"]
+    },
+    "safeDefaults": { "signal": 10000 },
+    "profileOverrides": {
+      "worker": { "signal": 60000 }
+    }
+  }
+]

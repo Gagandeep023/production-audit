@@ -1,0 +1,72 @@
+[
+  {
+    "id": "http/keep-alive-timeout-unset",
+    "library": "node",
+    "target": "http.Server",
+    "settings": [
+      "keepAliveTimeout",
+      "headersTimeout"
+    ],
+    "dangerousWhen": "unset",
+    "severity": "high",
+    "profiles": [
+      "http-api"
+    ],
+    "why": "Node closes an idle keep-alive socket after 5000ms. Any proxy or load balancer in front of it with a longer idle timeout (AWS ALB defaults to 60s) will eventually reuse a socket Node has just decided to close, and the client sees an intermittent 502 that reproduces nowhere else. The dangerous half of this pair is not in your codebase, so nothing reading your source can find it. headersTimeout is listed with it because the two have to move together: raising one alone trips http/headers-timeout-below-keep-alive.",
+    "fix": "Set server.keepAliveTimeout above your load balancer's idle timeout, and headersTimeout a little above that.",
+    "fixSnippet": {
+      "context": [
+        "const server = http.createServer(app);"
+      ],
+      "added": [
+        "server.keepAliveTimeout = 65_000;",
+        "server.headersTimeout = 66_000;"
+      ]
+    },
+    "safeDefaults": {
+      "keepAliveTimeout": 65000,
+      "headersTimeout": 66000
+    },
+    "match": "all"
+  },
+  {
+    "id": "http/headers-timeout-below-keep-alive",
+    "library": "node",
+    "target": "http.Server",
+    "settings": [
+      "headersTimeout"
+    ],
+    "dangerousWhen": {
+      "kind": "lessThanSetting",
+      "setting": "keepAliveTimeout"
+    },
+    "severity": "high",
+    "why": "headersTimeout must exceed keepAliveTimeout. When it does not, Node can time out the headers of a request arriving on a socket it was still willing to keep alive, and the connection is torn down mid-request.",
+    "fix": "Set headersTimeout to keepAliveTimeout plus a small margin, typically 1000ms.",
+    "fixSnippet": {
+      "added": [
+        "server.headersTimeout = server.keepAliveTimeout + 1_000;"
+      ]
+    }
+  },
+  {
+    "id": "http/request-timeout-disabled",
+    "library": "node",
+    "target": "http.Server",
+    "settings": [
+      "requestTimeout"
+    ],
+    "dangerousWhen": {
+      "kind": "equals",
+      "value": 0
+    },
+    "severity": "high",
+    "why": "requestTimeout of 0 disables the limit on how long a client may take to send a complete request. A slow client, deliberate or not, holds a socket and its handler indefinitely.",
+    "fix": "Leave requestTimeout at the Node default of 300000, or set an explicit non-zero value for your slowest legitimate upload.",
+    "fixSnippet": {
+      "added": [
+        "server.requestTimeout = 30_000;"
+      ]
+    }
+  }
+]

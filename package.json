@@ -1,0 +1,93 @@
+{
+  "name": "@gagandeep023/production-audit",
+  "version": "0.1.0",
+  "description": "Runtime audit for dangerous library defaults in Node services: reports the effective configuration of fetch, HTTP servers and connection pools with the exact fix, and optionally fills unset values at boot",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "production-audit": "dist/cli/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./rules": {
+      "types": "./dist/rules/index.d.ts",
+      "import": "./dist/rules/index.mjs",
+      "require": "./dist/rules/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.mjs",
+      "require": "./dist/cli/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.mjs",
+      "require": "./dist/register.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build",
+    "pretest": "npm run build"
+  },
+  "keywords": [
+    "gagan",
+    "gagandeep",
+    "gagandeep bhatia",
+    "production",
+    "reliability",
+    "timeout",
+    "defaults",
+    "diagnostics-channel",
+    "connection-pool",
+    "keep-alive",
+    "audit",
+    "node",
+    "typescript",
+    "zero-dependency"
+  ],
+  "author": "Gagandeep Bhatia <gagandeepbhatia2303@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gagandeep023/production-audit.git"
+  },
+  "homepage": "https://github.com/Gagandeep023/production-audit#readme",
+  "bugs": {
+    "url": "https://github.com/Gagandeep023/production-audit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "eslint": "^10.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  }
+}
