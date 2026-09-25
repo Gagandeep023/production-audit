@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Every version reports, so one old-Node failure does not hide the rest.
+      fail-fast: false
+      matrix:
+        node: ['18.19', '20', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      # `pretest` builds first, so the integration test runs against dist,
+      # which is what people install. It spawns a real child process under
+      # the real preload, and is the only place the module hook, the
+      # diagnostics channel subscription and the accessor-based assignment
+      # tracking all have to work at once.
+      #
+      # The rule corpus is validated here too: a contributed rule that is
+      # malformed does not throw at runtime, it silently never matches, so
+      # the schema test is the only thing standing between a bad rule and a
+      # check that quietly does nothing.
+      - run: npm test

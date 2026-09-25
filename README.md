@@ -245,6 +245,9 @@ Stated here rather than discovered later.
   watched and never happened.
 - **Server-side Node only.** Browser defaults are a different problem
   with different owners.
+- **Node 18.19 or newer.** The `--import` preload flag does not exist
+  on earlier versions, which would make the primary entry point silently
+  unavailable.
 - **`production-audit fix --write` does not exist yet.** Every finding
   already carries the exact lines; the codemod that writes them for you
   is not built.

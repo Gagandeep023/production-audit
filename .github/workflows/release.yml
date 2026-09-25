@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Run every check and stop before publishing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Required for npm trusted publishing. This is the whole point of the
+      # workflow: the OIDC token is minted per run and cannot be stolen from
+      # a laptop the way a long-lived token in ~/.npmrc can. It also yields a
+      # provenance attestation for free, which no release of this package has
+      # had so far.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs a recent npm. The one bundled with Node 22
+      # predates OIDC support, and without this the publish falls back to
+      # looking for a token that is deliberately not here.
+      - name: Use an npm that supports OIDC
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - name: Read the version being released
+        id: version
+        run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # A release tagged v0.2.0 that ships 0.1.9 is the kind of mistake nobody
+      # notices until somebody installs the wrong thing.
+      - name: Check the tag matches package.json
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "Release tag $TAG does not match package.json version $VERSION" >&2
+            exit 1
+          fi
+
+      # npm refuses to republish a version, but it does so after uploading the
+      # tarball and with a 403 that reads like a permissions problem. Failing
+      # here instead gives a message that says what actually happened.
+      - name: Check the version is not already published
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if npm view "@gagandeep023/production-audit@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION is already on the registry. Bump package.json first." >&2
+            exit 1
+          fi
+
+      - name: Check the tarball contents
+        run: |
+          npm pack --dry-run --json > /tmp/pack.json
+          node -e "
+            const [pkg] = require('/tmp/pack.json');
+            const allowed = ['dist/', 'README', 'LICENSE', 'package.json'];
+            const unexpected = pkg.files
+              .map((f) => f.path)
+              .filter((p) => !allowed.some((a) => p.startsWith(a)));
+            if (unexpected.length) {
+              console.error('Unexpected files in the tarball:', unexpected);
+              process.exit(1);
+            }
+            console.log(pkg.entryCount, 'files,', Math.round(pkg.unpackedSize / 1024), 'kB unpacked');
+          "
+
+      - name: Publish
+        if: github.event_name == 'release' || inputs.dry-run == false
+        # No NODE_AUTH_TOKEN. With a trusted publisher configured for this
+        # package on npmjs.com, the OIDC token above is the credential, and
+        # provenance is attached automatically.
+        run: npm publish
+
+      - name: Say what was skipped
+        if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: echo "Dry run. Every check passed for $VERSION and nothing was published."

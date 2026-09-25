@@ -79,7 +79,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=18.19.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
