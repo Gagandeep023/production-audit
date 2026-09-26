@@ -15,8 +15,11 @@ jobs:
     strategy:
       # Every version reports, so one old-Node failure does not hide the rest.
       fail-fast: false
+      # Vitest 4 requires Node 20 or newer, so the suite cannot run on the
+      # oldest version this package supports. The `compat` job below covers
+      # that version instead, by running the built output on it.
       matrix:
-        node: ['18.19', '20', '22', '24']
+        node: ['20', '22', '24']
 
     steps:
       - uses: actions/checkout@v4
@@ -43,3 +46,62 @@ jobs:
       # the schema test is the only thing standing between a bad rule and a
       # check that quietly does nothing.
       - run: npm test
+
+  compat:
+    name: node 18.19 runtime
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Built on a modern Node, then run on the oldest supported one. The
+      # test runner's requirements are not the package's requirements, and
+      # `engines.node` is a promise to users that nothing else verifies.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18.19'
+
+      - name: Check the engines floor is real
+        run: |
+          node --version
+          node -e "
+            const { engines } = require('./package.json');
+            const min = engines.node.replace('>=', '');
+            const [a, b] = [process.versions.node, min].map((v) => v.split('.').map(Number));
+            for (let i = 0; i < 3; i++) {
+              if (a[i] !== b[i]) {
+                if (a[i] < b[i]) { console.error('Runner is below engines.node'); process.exit(1); }
+                break;
+              }
+            }
+            console.log('running on', process.versions.node, 'against engines', engines.node);
+          "
+
+      # The preload is the primary entry point and needs --import, which is
+      # the reason the floor is 18.19 and not 18.17.
+      - name: Run the fixture app under the preload
+        run: |
+          cd test/fixtures
+          node --import ../../dist/register.js app.cjs 2> /tmp/report.txt || true
+          cat /tmp/report.txt
+          grep -q 'pg/pool-connection-timeout-unbounded' /tmp/report.txt
+          grep -q 'undici/fetch-no-timeout' /tmp/report.txt
+          grep -q 'at app.cjs:' /tmp/report.txt
+
+      - name: An explicitly configured app is still silent
+        run: |
+          cd test/fixtures
+          node --import ../../dist/register.js configured.cjs 2> /tmp/clean.txt || true
+          grep -q 'No findings.' /tmp/clean.txt
+
+      - name: Run the CLI
+        run: node dist/cli/bin.js rules
